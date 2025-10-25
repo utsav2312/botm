@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Telegram Bot Manager</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f9fafb;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+  }
+  .container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 30px;
+    width: 100%;
+    max-width: 600px;
+  }
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+  }
+  input {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  button {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+  }
+  button:hover {
+    background-color: #0069d9;
+  }
+  .message {
+    margin-top: 10px;
+    text-align: center;
+  }
+  .bot-list {
+    margin-top: 30px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .bot-item {
+    padding: 10px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .bot-item:last-child {
+    border-bottom: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Telegram Bot Manager</h1>
+  <input type="text" id="token" placeholder="Enter Bot Token" required />
+  <input type="text" id="mongo" placeholder="Enter MongoDB URI" required />
+  <button id="addBotBtn">Add Bot</button>
+  <div class="message" id="message"></div>
+
+  <div class="bot-list">
+    <h2>Current Bots</h2>
+    <div id="bots"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE_URL = 'http://173.212.235.25:3000'; // Replace YOUR_VPS_IP with your VPS or domain
+
+  async function fetchBots() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/bots`);
+      const bots = await res.json();
+      const botsContainer = document.getElementById('bots');
+      botsContainer.innerHTML = '';
+      bots.forEach(bot => {
+        const div = document.createElement('div');
+        div.className = 'bot-item';
+        div.textContent = bot.botname;
+        botsContainer.appendChild(div);
+      });
+    } catch (err) {
+      console.error('Error loading bots:', err);
+    }
+  }
+
+  async function addBot() {
+    const token = document.getElementById('token').value.trim();
+    const mongo = document.getElementById('mongo').value.trim();
+    const message = document.getElementById('message');
+
+    if (!token || !mongo) {
+      message.textContent = 'Please fill all fields.';
+      return;
+    }
+
+    try {
+      // Fetch bot info from Telegram API
+      const infoRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const info = await infoRes.json();
+
+      if (!info.ok) {
+        message.textContent = 'Invalid bot token.';
+        return;
+      }
+
+      const dbName = info.result.id.toString();
+      const botname = '@' + info.result.username;
+      const body = { token, mongo, dbName, type: 'normal', botname };
+
+      const res = await fetch(`${API_BASE_URL}/add-bot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        message.textContent = 'Bot added successfully!';
+        document.getElementById('token').value = '';
+        document.getElementById('mongo').value = '';
+        fetchBots();
+      } else {
+        message.textContent = 'Error: ' + await res.text();
+      }
+    } catch (err) {
+      message.textContent = 'Failed to add bot.';
+    }
+  }
+
+  document.getElementById('addBotBtn').addEventListener('click', addBot);
+  fetchBots();
+</script>
+
+</body>
+</html>
